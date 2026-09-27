@@ -44,7 +44,8 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             bc bison flex libssl-dev libelf-dev ccache zip zstd \
             binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi \
-            build-essential libncurses5-dev libncurses-dev ca-certificates curl git
+            build-essential libncurses5-dev libncurses-dev ca-certificates curl git \
+            python3 python-is-python3
 
       - name: Setup Proton Clang Toolchain
         run: |
@@ -76,18 +77,25 @@ jobs:
           mkdir -p out
 
           echo "Configuring kernel with $DEFCONFIG..."
-          make O=out $DEFCONFIG
+          make O=out ARCH=arm64 CC=clang CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- $DEFCONFIG
 
           echo "Compiling kernel..."
-          make O=out -j$(nproc --all)
+          make O=out ARCH=arm64 CC=clang CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- -j$(nproc --all)
 
           if [ -f "out/arch/arm64/boot/Image.gz-dtb" ]; then
-            echo "Kernel built successfully!"
+            echo "Image.gz-dtb found, copying..."
             cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/
           elif [ -f "out/arch/arm64/boot/Image.gz" ]; then
             echo "Image.gz found, copying..."
             cp out/arch/arm64/boot/Image.gz AnyKernel3/
-          else
+          fi
+
+          if [ -f "out/arch/arm64/boot/dtbo.img" ]; then
+            echo "dtbo.img found, copying..."
+            cp out/arch/arm64/boot/dtbo.img AnyKernel3/
+          fi
+
+          if [ ! -f "AnyKernel3/Image.gz-dtb" ] && [ ! -f "AnyKernel3/Image.gz" ]; then
             echo "::error::Kernel image not found after build!"
             exit 1
           fi
